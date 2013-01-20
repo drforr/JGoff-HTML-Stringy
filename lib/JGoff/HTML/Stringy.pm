@@ -4,6 +4,43 @@ use 5.006;
 use strict;
 use warnings;
 
+use Moose;
+#use HTML::TreeBuilder -weak;
+use XML::LibXML;
+use Carp qw( croak );
+
+has string => ( is => 'rw' );
+has dom => ( is => 'rw' );
+
+# {{{ _quote()
+
+sub _quote {
+  my $self = shift;
+  return $self->string;
+}
+
+# }}}
+
+# {{{ _cmp( $lhs, $rhs )
+
+sub _cmp {
+  my ( $lhs, $rhs ) = @_;
+  if ( ref( $lhs ) and $lhs->isa( 'JGoff::HTML::Stringy' ) ) {
+    $lhs = $lhs->string;
+  }
+  if ( ref( $rhs ) and $rhs->isa( 'JGoff::HTML::Stringy' ) ) {
+    $rhs = $rhs->string;
+  }
+  return $lhs cmp $rhs;
+}
+
+# }}}
+
+use overload (
+  '""' => \&_quote,
+  'cmp' => \&_cmp
+);
+
 =head1 NAME
 
 JGoff::HTML::Stringy - The great new JGoff::HTML::Stringy!
@@ -25,29 +62,177 @@ Perhaps a little code snippet.
 
     use JGoff::HTML::Stringy;
 
-    my $foo = JGoff::HTML::Stringy->new();
+    my $parser = JGoff::HTML::Stringy->new();
+    my $url = "http://www.google.co.uk/#hl=en&tbo=d&output=search&sclient=psy-ab&q=foo&oq=foo&gs_l=hp.3..0l4.25597.25938.0.26653.3.3.0.0.0.0.121.263.2j1.3.0.les%3B..0.0...1c.1.o2KCPLA0oKk&pbx=1&bav=on.2,or.r_gc.r_pw.r_qf.&bvm=bv.41248874,d.d2k&fp=ab9bec1cef6ba957&biw=1024&bih=643";
+
+    my $first_hit =
+    $parser->
+      Html( $url )->
+      Body->
+      Div( 4 )->Div( 2 )->Div->Div( 7 )->Div->Div( 3 )->Div->Div( 2 )->
+      Div -> Ol -> Li -> Div -> H2;
+
+#/html/body/div[4]/div[2]/div/div[7]/div/div[3]/div/div[2]/div/ol/li/div/h3
+    
     ...
 
-=head1 EXPORT
+=head1 METHODS
 
-A list of functions that can be exported.  You can delete this section
-if you don't export anything, such as for a purely object-oriented module.
+=head2 Html( $value )
 
-=head1 SUBROUTINES/METHODS
+Accepts one of: Scalar reference, Filehandle reference, scalar.
 
-=head2 function1
+Scalar references are assumed to reference strings, and the string is read and parsed as if it were HTML. If the argument is a filehandle, the file is read to exhaustion and treated as HTML.
 
-=cut
-
-sub function1 {
-}
-
-=head2 function2
+Scalars beginning with 'http://' or 'https://' are treated as URLs and are downloaded. Otherwise the content is assumed to be a local filename and the module tries to read that from disk.
 
 =cut
 
-sub function2 {
+# {{{ Html()
+
+sub Html {
+  my $self = shift;
+  my ( $input ) = @_;
+
+  if ( ref( $input ) and ref( $input ) eq 'SCALAR' ) {
+    $self->dom( XML::LibXML->load_xml( string => $$input ) );
+    $self->string( $$input );
+  }
+  else {
+croak "URL / filehandle not implemented yet";
+  }
+  return $self;
 }
+
+# }}}
+
+=head2 Head
+
+Returns the content of the HTML's <head/> section, if any. There should only be one of these, so no other options are offered. Note that while you can print the stringified version of the text, this is also an object, so you can proceed to use any of the methods below on it.
+
+For instance, C<< $p->Html( $url )->Head->Title >> will return the <title/> tag embedded within the head. Directly calling C<< $p->Html( $url )->Title >> will have the same effect due to how the method calls are chained.
+
+=cut
+
+# {{{ Head()
+
+sub Head {
+  my $self = shift;
+  my @tags = $self->dom->getElementsByTagName( 'head' );
+  $self->string( $tags[0]->toString( 1 ) );
+  $self;
+}
+
+# }}}
+
+=head2 Body
+
+Much like C<Head()>, but it returns the <body/> section of the document. Again, there should only be one <body/> in a well-formed HTML document, so no other options are offered. C<< $p->Html( $url )->Body >> should return the content of the body portion of the document.
+
+=cut
+
+# {{{ Body()
+
+sub Body {
+  my $self = shift;
+  my @tags = $self->dom->getElementsByTagName( 'body' );
+  $self->string( $tags[0]->toString( 1 ) );
+  $self;
+}
+
+# }}}
+
+=head2 Title
+
+Again, a well-formed HTML document should only have one <title/> section, so no options are on offer here. C<< $p->Html( $url )->Head->Title >> will return the HTML document's <title/> section, as will C<< $p->Html( $url )->Title >>, because these are simply handy shortcuts for the XPath '//title'.
+
+=cut
+
+# {{{ Title()
+
+sub Title {
+  my $self = shift;
+  my @tags = $self->dom->getElementsByTagName( 'title' );
+  $self->string( $tags[0]->toString( 1 ) );
+  $self;
+}
+
+# }}}
+
+=head2 Meta( ... )
+
+This method is slightly different than the ones before, because documents can have more than one <meta/> tag within them. Without arguments, this returns an arrayref of all <meta/> tags at the current document level. While there is probably a way to force it to return an array, I'd rather go this route than delve deeper into L< perldoc overload > than I have to.
+
+If you want the Nth <meta/> tag (zero-indexed, simply pass the desired number to Meta() like so: C<< $p->Html( $url )->Meta( 5 ) >> to return the 6th <meta/> tag on the page.
+
+Searching for a <meta/> tag by name is as simple as C<< $html->Meta( name => 'keywords' ) >>, and searching for all property tags can be done with C<< $html->Meta( property => '*' ) >>. Of course if you happen to have a property named '*' that may be problematic, I'll probably come up with a better syntax than this shortly.
+
+This convention will work for all other tag types. At release, all tag names through HTML4 should be implemented, and a table will follow below. It's safe to assume that any HTML4 tag you need (and most HTML5 as well) will be there with the first letter upper-cased, all others lower-case.
+
+=cut
+
+# {{{ Meta()
+
+sub Meta {
+  my $self = shift;
+  my @tags = $self->dom->getElementsByTagName( 'meta' );
+  $self->string( $tags[0]->toString( 1 ) );
+  $self;
+}
+
+# }}}
+
+=head2 H1
+
+This follows the same convention as C<Meta()>, so to access the Nth <h1/> tag call C<< $html->H1( 2 ) >>, named <h1/> tags like C<< $html->H1( class => 'foo' ) >>.
+
+=cut
+
+# {{{ H1()
+
+sub H1 {
+  my $self = shift;
+  my @tags = $self->dom->getElementsByTagName( 'h1' );
+  $self->string( $tags[0]->toString( 1 ) );
+  $self;
+}
+
+# }}}
+
+=head2 Span
+
+=cut
+
+# {{{ Span()
+
+sub Span {
+  my $self = shift;
+  my %args = @_;
+
+  my $path = '';
+  if ( keys %args ) {
+    $path = '[' .
+            join( ';', map { qq{\@$_="$args{$_}"} } keys %args ) .
+            ']';
+  }
+
+  my $tags = $self->dom->find( qq{//span$path} );
+  if ( @$tags ) {
+    if ( @$tags > 1 ) {
+      $self->string( [
+        map { $_->toString( 1 ) } @$tags
+      ] );
+    }
+    else {
+      $self->string( $tags->[0]->toString( 1 ) );
+    }
+  }
+  else {
+croak "No 'span' tag found";
+  }
+}
+
+# }}}
 
 =head1 AUTHOR
 
@@ -58,8 +243,6 @@ Jeff Goff, C<< <jgoff at cpan.org> >>
 Please report any bugs or feature requests to C<bug-jgoff-html-stringy at rt.cpan.org>, or through
 the web interface at L<http://rt.cpan.org/NoAuth/ReportBug.html?Queue=JGoff-HTML-Stringy>.  I will be notified, and then you'll
 automatically be notified of progress on your bug as I make changes.
-
-
 
 
 =head1 SUPPORT
