@@ -1,16 +1,15 @@
 JGoff-HTML-Stringy
 
-The README is used to introduce the module and provide instructions on
-how to install the module, any machine dependencies it may have (for
-example C compilers and installed libraries) and any other information
-that should be provided before the module is installed.
+HTML::Stringy is meant to be a quick-and-dirty HTML parser, not much else. If
+you need flexibility or robustness, please look into XML::LibXML or
+HTML::TreeBuilder. In fact this module should be treated as a thin wrapper
+around XML::LibXML. If you need XPath or DOM manipulation, this is not the
+module to use.
 
-A README file is required for CPAN modules since CPAN extracts the README
-file from a module distribution so that people browsing the archive
-can use it to get an idea of the module's uses. It is usually a good idea
-to provide version information here so that people can decide whether
-fixes for the module are worth downloading.
-
+Since it depends upon XML::LibXML it naturally requires that libxml2 be
+installed on the host machine, along with XML::LibXML. It offers no more than
+a quick way to grab a known <div/> or <h1/> out of an HTML document. If you
+have more sophisticated needs, look to the underlying module.
 
 INSTALLATION
 
@@ -45,7 +44,7 @@ You can also look for information at:
 
 LICENSE AND COPYRIGHT
 
-Copyright (C) 2012 Jeff Goff
+Copyright (C) 2012-13 Jeff Goff
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
