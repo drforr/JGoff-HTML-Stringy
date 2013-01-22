@@ -8,18 +8,6 @@ BEGIN {
   use_ok( 'JGoff::HTML::Stringy' ) || print "Bail out!\n";
 }
 
-#
-# The API:
-#
-# Html($url) # Returns a stringy object consisting of the HTML of the URL
-# Html(\$string) # Returns a stringy object consisting of the HTML in the string
-#
-# Html($url)->Head # Returns a stringy object consisting of the <head>..</head>
-#                  # text of the object.
-#
-# Html($url)->Body # Similar to ->head(), but the <body>..</body> text.
-# 
-
 my $parser = JGoff::HTML::Stringy->new;
 
 # {{{ Sample HTML
@@ -28,6 +16,8 @@ my $html =
     <head>
         <title>Test Title</title>
         <meta description="Meta Desc" name="Meta Name" />
+        <link rel="stylesheet" href="http://www.example.com/background.css" />
+        <link rel="stylesheet" href="http://www.example.com/foreground.css" />
     </head>
     <body>
         <h1>
@@ -48,6 +38,8 @@ is(
     '<head>
         <title>Test Title</title>
         <meta description="Meta Desc" name="Meta Name" />
+        <link rel="stylesheet" href="http://www.example.com/background.css" />
+        <link rel="stylesheet" href="http://www.example.com/foreground.css" />
     </head>'
 );
 
@@ -87,6 +79,32 @@ is(
 );
 
 # }}}
+
+## {{{ Html()->[Head()->]Link() chained accessor
+#
+#is_deeply(
+#  $parser->Html(\$html)->Head->Link, [
+#    '<link rel="stylesheet" href="http://www.example.com/background.css" />',
+#    '<link rel="stylesheet" href="http://www.example.com/foreground.css" />'
+#  ]
+#);
+#is_deeply(
+#  $parser->Html(\$html)->Link, [
+#    '<link rel="stylesheet" href="http://www.example.com/background.css" />',
+#    '<link rel="stylesheet" href="http://www.example.com/foreground.css" />'
+#  ]
+#);
+#
+#is(
+#  $parser->Html(\$html)->Head->Link( 0 ),
+#  '<link rel="stylesheet" href="http://www.example.com/background.css" />'
+#);
+#is(
+#  $parser->Html(\$html)->Head->Link( 1 ),
+#  '<link rel="stylesheet" href="http://www.example.com/foreground.css" />'
+#);
+#
+## }}}
 
 # {{{ html()->[body()->h1()->]span([id => 'foo']) chained accessor
 

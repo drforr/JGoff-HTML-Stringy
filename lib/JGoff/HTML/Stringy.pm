@@ -41,6 +41,25 @@ use overload (
   'cmp' => \&_cmp
 );
 
+our @tag_names = qw(
+  Head
+    Title
+    Meta
+    Link
+  Body
+    H1 H2 H3 H4 H5 H6
+    Div Span
+);
+
+no strict 'refs';
+for my $tag_name ( @tag_names ) {
+  *{$tag_name} = sub {
+    my $self = shift;
+    $self->_args_to_find( lcfirst( $tag_name ), @_ );
+    $self
+  }
+}
+
 =head1 NAME
 
 JGoff::HTML::Stringy - The great new JGoff::HTML::Stringy!
@@ -53,6 +72,40 @@ Version 0.01
 
 our $VERSION = '0.01';
 
+# {{{ _args_to_find( 'meta', [...] )
+
+sub _args_to_find {
+  my $self = shift;
+  my $path = shift;
+  my $quantifier = '';
+  if ( @_ and @_ > 1 ) {
+    my ( %attributes ) = @_;
+    $quantifier =
+      "[" .
+      join(";", map { qq{\@$_="$attributes{$_}"} } keys %attributes ) .
+      "]";
+  }
+  elsif ( @_ and @_ == 1 ) {
+    my ( $index ) = @_;
+    $quantifier = "[$index]";
+  }
+
+  my $xpath = qq{//} . $path . $quantifier;
+  my $tags = $self->dom->find( $xpath );
+  if ( @$tags and @$tags > 1 ) {
+    $self->string( [
+      map { $_->toString( 1 ) } @$tags
+    ] );
+  }
+  elsif ( @$tags ) {
+    $self->string( $tags->[0]->toString( 1 ) );
+  }
+  else {
+croak "Traversing '$xpath', no tags found!";
+  }
+}
+
+# }}}
 
 =head1 SYNOPSIS
 
@@ -114,50 +167,17 @@ For instance, C<< $p->Html( $url )->Head->Title >> will return the <title/> tag 
 
 =cut
 
-# {{{ Head()
-
-sub Head {
-  my $self = shift;
-  my @tags = $self->dom->getElementsByTagName( 'head' );
-  $self->string( $tags[0]->toString( 1 ) );
-  $self;
-}
-
-# }}}
-
 =head2 Body
 
 Much like C<Head()>, but it returns the <body/> section of the document. Again, there should only be one <body/> in a well-formed HTML document, so no other options are offered. C<< $p->Html( $url )->Body >> should return the content of the body portion of the document.
 
 =cut
 
-# {{{ Body()
-
-sub Body {
-  my $self = shift;
-  my @tags = $self->dom->getElementsByTagName( 'body' );
-  $self->string( $tags[0]->toString( 1 ) );
-  $self;
-}
-
-# }}}
-
 =head2 Title
 
 Again, a well-formed HTML document should only have one <title/> section, so no options are on offer here. C<< $p->Html( $url )->Head->Title >> will return the HTML document's <title/> section, as will C<< $p->Html( $url )->Title >>, because these are simply handy shortcuts for the XPath '//title'.
 
 =cut
-
-# {{{ Title()
-
-sub Title {
-  my $self = shift;
-  my @tags = $self->dom->getElementsByTagName( 'title' );
-  $self->string( $tags[0]->toString( 1 ) );
-  $self;
-}
-
-# }}}
 
 =head2 Meta( ... )
 
@@ -171,16 +191,11 @@ This convention will work for all other tag types. At release, all tag names thr
 
 =cut
 
-# {{{ Meta()
+=head2 Link
 
-sub Meta {
-  my $self = shift;
-  my @tags = $self->dom->getElementsByTagName( 'meta' );
-  $self->string( $tags[0]->toString( 1 ) );
-  $self;
-}
+This follows the same convention as C<Meta()>, so to access the Nth <link/> tag call C<< $html->Link( 2 ) >>, named <link/> tags like C<< $html->link( rel => 'stylesheet' ) >>.
 
-# }}}
+=cut
 
 =head2 H1
 
@@ -188,51 +203,9 @@ This follows the same convention as C<Meta()>, so to access the Nth <h1/> tag ca
 
 =cut
 
-# {{{ H1()
-
-sub H1 {
-  my $self = shift;
-  my @tags = $self->dom->getElementsByTagName( 'h1' );
-  $self->string( $tags[0]->toString( 1 ) );
-  $self;
-}
-
-# }}}
-
 =head2 Span
 
 =cut
-
-# {{{ Span()
-
-sub Span {
-  my $self = shift;
-  my %args = @_;
-
-  my $path = '';
-  if ( keys %args ) {
-    $path = '[' .
-            join( ';', map { qq{\@$_="$args{$_}"} } keys %args ) .
-            ']';
-  }
-
-  my $tags = $self->dom->find( qq{//span$path} );
-  if ( @$tags ) {
-    if ( @$tags > 1 ) {
-      $self->string( [
-        map { $_->toString( 1 ) } @$tags
-      ] );
-    }
-    else {
-      $self->string( $tags->[0]->toString( 1 ) );
-    }
-  }
-  else {
-croak "No 'span' tag found";
-  }
-}
-
-# }}}
 
 =head1 AUTHOR
 
