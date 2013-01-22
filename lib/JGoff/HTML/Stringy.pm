@@ -41,21 +41,85 @@ use overload (
   'cmp' => \&_cmp
 );
 
-our @tag_names = qw(
-  Head
-    Title
-    Meta
-    Link
-  Body
-    H1 H2 H3 H4 H5 H6
-    Div Span
+#HTML
+
+our @html3_2_elements = qw(
+ADDRESS APPLET AREA A
+BASE BASEFONT BIG BLOCKQUOTE BODY BR B
+CAPTION CENTER CITE CODE
+DD DFN DIR DIV DL DT
+EM
+FONT FORM
+H1 H2 H3 H4 H5 H6 HEAD HR
+IMG INPUT ISINDEX I
+KBD
+LINK LI
+MAP MENU META
+OL OPTION
+PARAM PRE P
+SAMP SCRIPT SELECT SMALL STRIKE STRONG STYLE SUB SUP
+TABLE TD TEXTAREA TH TITLE TR TT
+UL U VAR
+);
+
+our @html4_elements = qw(
+A ABBR ACRONYM ADDRESS APPLET AREA
+B BASE BASEFONT BDO BIG BLOCKQUOTE BODY BR BUTTON
+CAPTION CENTER CITE CODE COL COLGROUP
+DD DEL DFN DIR DIV DL DT
+EM
+FIELDSET FONT FORM FRAME FRAMESET
+H1 H2 H3 H4 H5 H6 HEAD HR
+I IFRAME IMG INPUT INS ISINDEX
+KBD
+LABEL LEGEND LI LINK
+MAP MENU META
+NOFRAMES NOSCRIPT
+OBJECT OL OPTGROUP OPTION
+P PARAM PRE
+Q
+S SAMP SCRIPT SELECT SMALL SPAN STRIKE STRONG STYLE SUB SUP
+TABLE TBODY TD TEXTAREA TFOOT TH THEAD TITLE TR TT
+U UL
+VAR
+);
+
+our @html5_elements = qw(
+a abbr address area article aside audio
+b base bdi bdo blockquote body br button
+canvas caption cite code col colgroup
+menuitem
+datalist dd del details dfn dialog div dl dt
+em embed
+fieldset figcaption figure footer form
+h1 h2 h3 h4 h5 h6 head header hgroup hr
+i iframe img input ins
+kbd keygen
+label legend li link
+main map mark menu meta meter
+nav noscript
+object ol optgroup option output
+p param pre progress
+q
+rp rt ruby
+s samp script section select small source span strong style sub summary sup
+table tbody td textarea tfoot th thead time title tr track
+u ul
+var video
+wbr
+);
+
+my %all_elements = map { $_ => 1 } (
+  @html3_2_elements,
+  @html4_elements,
+  @html5_elements
 );
 
 no strict 'refs';
-for my $tag_name ( @tag_names ) {
-  *{$tag_name} = sub {
+for my $tag_name ( keys %all_elements ) {
+  *{ucfirst(lc($tag_name))} = sub {
     my $self = shift;
-    $self->_args_to_find( lcfirst( $tag_name ), @_ );
+    $self->_args_to_find( lc( $tag_name ), @_ );
     $self
   }
 }
